@@ -4,7 +4,7 @@ if SERVER then
 end
 
 function ROLE:PreInitialize()
-	self.color = Color(50, 50, 50, 255)
+	self.color = Color(94, 79, 68, 255)
 
 	self.abbr = "sleep"
 	self.survivebonus = 1                   -- points for surviving longer
