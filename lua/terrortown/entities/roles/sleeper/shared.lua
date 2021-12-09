@@ -8,7 +8,7 @@ function ROLE:PreInitialize()
 
 	self.abbr = "sleep"
 	self.survivebonus = 1                   -- points for surviving longer
-	self.preventFindCredits = false	        -- can't take credits from bodies
+	self.preventFindCredits = true	        -- can't take credits from bodies
 	self.preventKillCredits = true          -- does not get awarded credits for kills
 	self.preventTraitorAloneCredits = true  -- no credits
 	self.preventWin = false                 -- cannot win unless he switches roles
