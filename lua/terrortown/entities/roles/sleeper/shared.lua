@@ -1,6 +1,9 @@
 if SERVER then
 	AddCSLuaFile()
 	resource.AddFile("materials/vgui/ttt/dynamic/roles/icon_sleep.vmt")
+
+	util.AddNetworkString("TTT2SleeperConvertNetMsg")
+	util.AddNetworkString("TTT2SleeperResetNetMsg")
 end
 
 function ROLE:PreInitialize()
@@ -16,7 +19,9 @@ function ROLE:PreInitialize()
 	self.score.teamKillsMultiplier = -8     -- loses points for killing teammates
 	self.disableSync = true                 -- dont tell the player about his role
 
+	self.isOmniscientRole = false -- can see missing people and haste timer
 	self.unknownTeam = true -- Doesn't know his teammates
+	
 	self.defaultTeam = TEAM_INNOCENT -- starts as Innocent Team
 
 	self.conVarData = {
@@ -47,6 +52,9 @@ local function CheckTraitorAlive()
 end
 
 local function ConvertToSleeper(ply)
+	roles.GetByIndex(ROLE_SLEEPER).isOmniscientRole = true
+	roles.GetByIndex(ROLE_SLEEPER).unknownTeam = false
+
 	ply:UpdateTeam(TEAM_TRAITOR)
 	ply:AddCredits(GetConVar("ttt2_sleeper_convert_credits"):GetInt())
 
@@ -63,7 +71,15 @@ if SERVER then
 		if not CheckTraitorAlive() then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply:GetSubRole() == ROLE_SLEEPER and ply:Alive() then
-					ConvertToSleeper(ply)
+
+					-- Activate Sleeper after a 2s delay so the round ends before they can be converted
+					timer.Create('TTT2SleeperConvertTimer', 2, 1, function() 
+						ConvertToSleeper(ply)
+
+						-- Send net message to clients
+						net.Start('TTT2SleeperConvertNetMsg')
+						net.Broadcast()
+					end)
 				end
 			end
 		end
@@ -90,4 +106,29 @@ if SERVER then
 			end
 		end
 	end)
+
+	hook.Add('TTTBeginRound', 'TTT2SleeperRoundReset', function() 
+		roles.GetByIndex(ROLE_SLEEPER).isOmniscientRole = false
+		roles.GetByIndex(ROLE_SLEEPER).unknownTeam = true
+		
+		-- Send net message to clients
+		net.Start('TTT2SleeperResetNetMsg')
+		net.Broadcast()
+	end)
+end
+
+if CLIENT then
+	-- Set Sleeper flags for Client
+	local function RecvConvertSleeper()
+		roles.GetByIndex(ROLE_SLEEPER).isOmniscientRole = true
+		roles.GetByIndex(ROLE_SLEEPER).unknownTeam = false
+	end
+	net.Receive('TTT2SleeperConvertNetMsg', RecvConvertSleeper)
+
+	-- Reset Sleeper flags for Client
+	local function RecvResetSleeper()
+		roles.GetByIndex(ROLE_SLEEPER).isOmniscientRole = false
+		roles.GetByIndex(ROLE_SLEEPER).unknownTeam = true
+	end
+	net.Receive('TTT2SleeperResetNetMsg', RecvResetSleeper)
 end
